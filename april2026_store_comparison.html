@@ -1,0 +1,248 @@
+
+<h2 class="sr-only">2026年4月度 店舗別売上・販管費・利益比較ダッシュボード</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:1.25rem;}
+.tab{padding:6px 13px;font-size:13px;cursor:pointer;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);}
+.tab.active{background:var(--color-background-secondary);color:var(--color-text-primary);font-weight:500;border-color:var(--color-border-primary);}
+.chart-wrap{position:relative;width:100%;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem;}
+.kpi{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;}
+.kpi-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px;}
+.kpi-val{font-size:19px;font-weight:500;color:var(--color-text-primary);}
+.kpi-sub{font-size:11px;margin-top:2px;}
+.up{color:#1D9E75;} .down{color:#D85A30;} .neu{color:var(--color-text-secondary);}
+.section-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:1.25rem 0 6px;padding-bottom:5px;border-bottom:0.5px solid var(--color-border-tertiary);}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;font-size:12px;color:var(--color-text-secondary);}
+.legend span{display:flex;align-items:center;gap:4px;}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+.ranking-table{width:100%;border-collapse:collapse;font-size:13px;}
+.ranking-table th{text-align:left;padding:6px 8px;font-size:11px;font-weight:500;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-secondary);}
+.ranking-table td{padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);}
+.ranking-table tr:last-child td{border-bottom:none;}
+.bar-inline{display:inline-block;height:8px;border-radius:2px;vertical-align:middle;margin-left:6px;}
+.badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:500;}
+.badge-up{background:#E1F5EE;color:#0F6E56;} .badge-down{background:#FAECE7;color:#993C1D;}
+@media (prefers-color-scheme:dark){.badge-up{background:#085041;color:#9FE1CB;}.badge-down{background:#4A1B0C;color:#F5C4B3;}}
+</style>
+
+<div style="padding:1rem 0;">
+<div class="tabs">
+  <button class="tab active" onclick="show('overview')">概況比較</button>
+  <button class="tab" onclick="show('ranking')">ランキング</button>
+  <button class="tab" onclick="show('sg')">販管費内訳</button>
+</div>
+
+<!-- OVERVIEW -->
+<div id="v-overview">
+  <div class="section-label">売上高 ― 2026年4月（昨対比較）</div>
+  <div class="legend"><span><i style="background:#378ADD;"></i>2025年度(4月)</span><span><i style="background:#B5D4F4;"></i>2024年度(4月)</span></div>
+  <div class="chart-wrap" style="height:260px;"><canvas id="salesChart" role="img" aria-label="4月度売上高比較">売上高比較</canvas></div>
+
+  <div class="section-label">売上総利益・販管費・営業利益（2025年度4月）</div>
+  <div class="chart-wrap" style="height:260px;"><canvas id="plChart" role="img" aria-label="4月度P&L比較">P&L比較</canvas></div>
+
+  <div class="section-label">昨対増減サマリー</div>
+  <div class="chart-wrap" style="height:220px;"><canvas id="diffChart" role="img" aria-label="4月度昨対増減">昨対増減</canvas></div>
+</div>
+
+<!-- RANKING -->
+<div id="v-ranking" style="display:none;">
+  <div class="section-label">売上高ランキング（2025年度4月）</div>
+  <table class="ranking-table" id="rankSales"></table>
+  <div class="section-label">営業利益ランキング（2025年度4月）</div>
+  <table class="ranking-table" id="rankProfit"></table>
+  <div class="section-label">販管費ランキング（2025年度4月）</div>
+  <table class="ranking-table" id="rankSG"></table>
+</div>
+
+<!-- SG BREAKDOWN -->
+<div id="v-sg" style="display:none;">
+  <select id="storeSelect" class="tab" style="border-color:var(--color-border-secondary);padding:6px 12px;" onchange="renderSG(this.value)">
+    <option>岡崎</option><option>野間</option><option>野並</option><option>一宮</option>
+    <option>与位</option><option>瀬戸</option><option>蒲郡</option><option>栄</option><option>京都</option>
+  </select>
+  <div class="legend" style="margin-top:10px;"><span><i style="background:#378ADD;"></i>2025年度(4月)</span><span><i style="background:#B5D4F4;"></i>2024年度(4月)</span></div>
+  <div class="chart-wrap" id="sgWrap" style="height:360px;"><canvas id="sgChart" role="img" aria-label="販管費内訳比較">販管費内訳</canvas></div>
+  <div class="section-label" style="margin-top:1rem;">昨対増減（科目別）</div>
+  <div class="chart-wrap" id="sgDiffWrap" style="height:260px;"><canvas id="sgDiffChart" role="img" aria-label="販管費増減">販管費増減</canvas></div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
+const tc = isDark ? '#e0dfd8' : '#2C2C2A';
+const gc = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const B25 = isDark ? '#185FA5' : '#378ADD';
+const B24 = isDark ? '#3C3489' : '#B5D4F4';
+const TEAL = isDark ? '#0F6E56' : '#1D9E75';
+const CORAL = isDark ? '#993C1D' : '#D85A30';
+const AMBER = isDark ? '#854F0B' : '#BA7517';
+
+const stores = ['岡崎','野間','野並','一宮','与位','瀬戸','蒲郡','栄','京都'];
+
+const d = {
+  売上25:[8892,9178,3554,6485,2047,6628,1403,5463,1126],
+  売上24:[10047,6721,4655,5639,2232,4932,1427,3887,0],
+  粗利25:[6138,6858,2224,5128,621,5080,233,3861,-96],
+  粗利24:[7807,4487,2974,4674,1505,3295,738,2718,0],
+  販管25:[9471,7592,2577,4641,4749,4733,1409,3351,6898],
+  販管24:[12895,8138,2592,4956,4218,4620,1661,3326,0],
+  利益25:[-3333,-734,-353,487,-4128,346,-1176,510,-6994],
+  利益24:[-5088,-3652,382,-282,803,-1325,-492,-608,0],
+};
+
+const sgItems25 = {
+  岡崎:{旅費交通費:191,広告宣伝費:432,発送配達費:17,燃料費:62,業務委託費:116,役員報酬:0,従業員給料手当:3048,賞与:0,法定福利費:276,福利厚生費:53,減価償却費:538,賃借料:122,修繕費:63,事務用消耗品費:1287,通信費:25,水道光熱費:123,地代家賃:1251,租税公課:192,会議費:10,保険料:0,管理諸費:1432,採用教育費:0,雑費:233},
+  野間:{旅費交通費:51,広告宣伝費:391,発送配達費:5,燃料費:0,業務委託費:94,役員報酬:0,従業員給料手当:2242,賞与:0,法定福利費:108,福利厚生費:37,減価償却費:329,賃借料:73,修繕費:1,事務用消耗品費:311,通信費:44,水道光熱費:614,地代家賃:1870,租税公課:110,会議費:0,保険料:0,管理諸費:333,採用教育費:0,雑費:979},
+  野並:{旅費交通費:58,広告宣伝費:183,発送配達費:1,燃料費:10,業務委託費:0,役員報酬:0,従業員給料手当:1159,賞与:0,法定福利費:45,福利厚生費:13,減価償却費:33,賃借料:72,修繕費:0,事務用消耗品費:135,通信費:22,水道光熱費:238,地代家賃:450,租税公課:0,会議費:0,保険料:0,管理諸費:110,採用教育費:0,雑費:47},
+  一宮:{旅費交通費:20,広告宣伝費:621,発送配達費:3,燃料費:8,業務委託費:118,役員報酬:0,従業員給料手当:1841,賞与:0,法定福利費:107,福利厚生費:0,減価償却費:58,賃借料:24,修繕費:0,事務用消耗品費:198,通信費:45,水道光熱費:386,地代家賃:811,租税公課:38,会議費:0,保険料:0,管理諸費:180,採用教育費:0,雑費:181},
+  与位:{旅費交通費:81,広告宣伝費:233,発送配達費:5,燃料費:5,業務委託費:158,役員報酬:0,従業員給料手当:1535,賞与:0,法定福利費:88,福利厚生費:29,減価償却費:5,賃借料:0,修繕費:281,事務用消耗品費:398,通信費:34,水道光熱費:674,地代家賃:756,租税公課:2,会議費:0,保険料:15,管理諸費:134,採用教育費:0,雑費:317},
+  瀬戸:{旅費交通費:39,広告宣伝費:325,発送配達費:10,燃料費:30,業務委託費:69,役員報酬:0,従業員給料手当:1799,賞与:0,法定福利費:58,福利厚生費:49,減価償却費:66,賃借料:47,修繕費:20,事務用消耗品費:272,通信費:32,水道光熱費:578,地代家賃:1140,租税公課:10,会議費:0,保険料:0,管理諸費:100,採用教育費:0,雑費:88},
+  蒲郡:{旅費交通費:0,広告宣伝費:35,発送配達費:23,燃料費:0,業務委託費:0,役員報酬:600,従業員給料手当:300,賞与:0,法定福利費:40,福利厚生費:0,減価償却費:40,賃借料:51,修繕費:0,事務用消耗品費:182,通信費:11,水道光熱費:0,地代家賃:0,租税公課:0,会議費:58,保険料:0,管理諸費:57,採用教育費:0,雑費:12},
+  栄:{旅費交通費:59,広告宣伝費:468,発送配達費:1,燃料費:0,業務委託費:0,役員報酬:0,従業員給料手当:1287,賞与:0,法定福利費:0,福利厚生費:14,減価償却費:68,賃借料:0,修繕費:0,事務用消耗品費:225,通信費:23,水道光熱費:213,地代家賃:790,租税公課:0,会議費:0,保険料:0,管理諸費:96,採用教育費:0,雑費:107},
+  京都:{旅費交通費:145,広告宣伝費:14,発送配達費:21,燃料費:71,業務委託費:182,役員報酬:0,従業員給料手当:2086,賞与:0,法定福利費:110,福利厚生費:0,減価償却費:0,賃借料:0,修繕費:21,事務用消耗品費:4009,通信費:21,水道光熱費:6,地代家賃:0,租税公課:0,会議費:0,保険料:0,管理諸費:137,採用教育費:0,雑費:75},
+};
+const sgItems24 = {
+  岡崎:{旅費交通費:217,広告宣伝費:465,発送配達費:13,燃料費:106,業務委託費:203,役員報酬:0,従業員給料手当:3143,賞与:0,法定福利費:389,福利厚生費:59,減価償却費:4030,賃借料:144,修繕費:81,事務用消耗品費:439,通信費:7,水道光熱費:567,地代家賃:1657,租税公課:200,会議費:0,保険料:0,管理諸費:624,採用教育費:0,雑費:550},
+  野間:{旅費交通費:106,広告宣伝費:632,発送配達費:22,燃料費:24,業務委託費:342,役員報酬:0,従業員給料手当:2924,賞与:0,法定福利費:214,福利厚生費:36,減価償却費:370,賃借料:50,修繕費:59,事務用消耗品費:634,通信費:32,水道光熱費:611,地代家賃:1277,租税公課:65,会議費:0,保険料:0,管理諸費:373,採用教育費:0,雑費:367},
+  野並:{旅費交通費:30,広告宣伝費:117,発送配達費:0,燃料費:30,業務委託費:0,役員報酬:100,従業員給料手当:1190,賞与:0,法定福利費:87,福利厚生費:0,減価償却費:34,賃借料:8,修繕費:10,事務用消耗品費:92,通信費:19,水道光熱費:259,地代家賃:450,租税公課:0,会議費:0,保険料:0,管理諸費:96,採用教育費:0,雑費:70},
+  一宮:{旅費交通費:15,広告宣伝費:257,発送配達費:8,燃料費:0,業務委託費:85,役員報酬:0,従業員給料手当:2015,賞与:0,法定福利費:100,福利厚生費:25,減価償却費:475,賃借料:8,修繕費:65,事務用消耗品費:124,通信費:37,水道光熱費:443,地代家賃:1000,租税公課:35,会議費:0,保険料:0,管理諸費:126,採用教育費:0,雑費:138},
+  与位:{旅費交通費:95,広告宣伝費:351,発送配達費:1,燃料費:19,業務委託費:136,役員報酬:0,従業員給料手当:1440,賞与:0,法定福利費:90,福利厚生費:32,減価償却費:5,賃借料:0,修繕費:89,事務用消耗品費:76,通信費:30,水道光熱費:683,地代家賃:720,租税公課:0,会議費:0,保険料:11,管理諸費:144,採用教育費:0,雑費:297},
+  瀬戸:{旅費交通費:124,広告宣伝費:168,発送配達費:14,燃料費:47,業務委託費:69,役員報酬:0,従業員給料手当:1875,賞与:0,法定福利費:118,福利厚生費:41,減価償却費:73,賃借料:53,修繕費:39,事務用消耗品費:147,通信費:29,水道光熱費:812,地代家賃:800,租税公課:0,会議費:0,保険料:0,管理諸費:135,採用教育費:0,雑費:77},
+  蒲郡:{旅費交通費:27,広告宣伝費:242,発送配達費:0,燃料費:0,業務委託費:0,役員報酬:0,従業員給料手当:46,賞与:0,法定福利費:0,福利厚生費:25,減価償却費:40,賃借料:25,修繕費:157,事務用消耗品費:786,通信費:10,水道光熱費:22,地代家賃:0,租税公課:0,会議費:0,保険料:0,管理諸費:161,採用教育費:0,雑費:121},
+  栄:{旅費交通費:86,広告宣伝費:527,発送配達費:0,燃料費:20,業務委託費:200,役員報酬:400,従業員給料手当:840,賞与:0,法定福利費:162,福利厚生費:0,減価償却費:-220,賃借料:0,修繕費:0,事務用消耗品費:51,通信費:10,水道光熱費:174,地代家賃:840,租税公課:4,会議費:0,保険料:0,管理諸費:147,採用教育費:0,雑費:84},
+  京都:{旅費交通費:0,広告宣伝費:0,発送配達費:0,燃料費:0,業務委託費:0,役員報酬:0,従業員給料手当:0,賞与:0,法定福利費:0,福利厚生費:0,減価償却費:0,賃借料:0,修繕費:0,事務用消耗品費:0,通信費:0,水道光熱費:0,地代家賃:0,租税公課:0,会議費:0,保険料:0,管理諸費:0,採用教育費:0,雑費:0},
+};
+
+const fmt = v => (v<0?'−':'') + Math.abs(v).toLocaleString();
+const fmtD = v => (v>=0?'+':'−') + Math.abs(v).toLocaleString();
+const baseOpts = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{ticks:{color:tc,font:{size:11},autoSkip:false,maxRotation:0},grid:{color:gc}},
+    y:{ticks:{color:tc,font:{size:11},callback:v=>v>=1000||(v<=-1000)?((v/1000).toFixed(0)+'千'):v},grid:{color:gc}}
+  }
+};
+
+let charts = {};
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function initOverview(){
+  destroyChart('salesChart');
+  charts.salesChart = new Chart(document.getElementById('salesChart'),{
+    type:'bar',
+    data:{labels:stores,datasets:[
+      {label:'2025年度(4月)',data:d.売上25,backgroundColor:B25,borderRadius:2,barPercentage:0.7},
+      {label:'2024年度(4月)',data:d.売上24,backgroundColor:B24,borderRadius:2,barPercentage:0.7}
+    ]},
+    options:{...baseOpts,plugins:{legend:{display:true,position:'top',labels:{color:tc,font:{size:11},usePointStyle:true,pointStyle:'rect'}}}}
+  });
+
+  destroyChart('plChart');
+  charts.plChart = new Chart(document.getElementById('plChart'),{
+    type:'bar',
+    data:{labels:stores,datasets:[
+      {label:'売上総利益',data:d.粗利25,backgroundColor:B25,borderRadius:2,barPercentage:0.75},
+      {label:'販管費',data:d.販管25,backgroundColor:AMBER,borderRadius:2,barPercentage:0.75},
+      {label:'営業利益',data:d.利益25,backgroundColor:d.利益25.map(v=>v>=0?TEAL:CORAL),borderRadius:2,barPercentage:0.75}
+    ]},
+    options:{...baseOpts,plugins:{legend:{display:true,position:'top',labels:{color:tc,font:{size:11},usePointStyle:true,pointStyle:'rect',
+      generateLabels:()=>[
+        {text:'売上総利益',fillStyle:B25,strokeStyle:B25,pointStyle:'rect'},
+        {text:'販管費',fillStyle:AMBER,strokeStyle:AMBER,pointStyle:'rect'},
+        {text:'営業利益（黒：黒字/赤：赤字）',fillStyle:TEAL,strokeStyle:TEAL,pointStyle:'rect'},
+      ]
+    }}}}
+  });
+
+  const profDiff = d.利益25.map((v,i)=>v-d.利益24[i]);
+  destroyChart('diffChart');
+  charts.diffChart = new Chart(document.getElementById('diffChart'),{
+    type:'bar',
+    data:{labels:stores,datasets:[
+      {label:'営業利益昨対増減',data:profDiff,backgroundColor:profDiff.map(v=>v>=0?TEAL:CORAL),borderRadius:2,barPercentage:0.6}
+    ]},
+    options:{...baseOpts,plugins:{legend:{display:false},title:{display:true,text:'営業利益 昨対増減（千円）',color:tc,font:{size:12,weight:'500'}}}}
+  });
+}
+
+function initRanking(){
+  function buildTable(elId, data, label, unit='千円'){
+    const el = document.getElementById(elId);
+    const sorted = stores.map((s,i)=>({s,v:data[i]})).sort((a,b)=>b.v-a.v);
+    const max = Math.max(...sorted.map(x=>Math.abs(x.v)));
+    el.innerHTML = `<thead><tr><th style="width:24px;">#</th><th>${label}</th><th style="text-align:right;">${unit}</th><th>昨対</th><th style="width:120px;"></th></tr></thead><tbody>` +
+      sorted.map((x,i)=>{
+        const prev = data===d.売上25 ? d.売上24 : data===d.利益25 ? d.利益24 : d.販管24;
+        const prevV = prev[stores.indexOf(x.s)];
+        const diff = x.v - prevV;
+        const diffCls = (data===d.販管25) ? (diff<=0?'up':'down') : (diff>=0?'up':'down');
+        const barW = Math.round(Math.abs(x.v)/max*90);
+        const barC = x.v>=0 ? B25 : CORAL;
+        return `<tr><td style="color:var(--color-text-secondary);font-size:11px;">${i+1}</td>
+          <td style="font-weight:500;">${x.s}</td>
+          <td style="text-align:right;">${fmt(x.v)}</td>
+          <td><span class="${diffCls}">${fmtD(diff)}</span></td>
+          <td><span class="bar-inline" style="width:${barW}px;background:${barC};"></span></td></tr>`;
+      }).join('') + '</tbody>';
+  }
+  buildTable('rankSales', d.売上25, '売上高');
+  buildTable('rankProfit', d.利益25, '営業利益');
+  buildTable('rankSG', d.販管25, '販管費');
+}
+
+let sgChart=null, sgDiffChart=null;
+function renderSG(store){
+  const allKeys = Object.keys(sgItems25[store]);
+  const keys = allKeys.filter(k=>sgItems25[store][k]>0||sgItems24[store][k]>0);
+  const v25 = keys.map(k=>sgItems25[store][k]);
+  const v24 = keys.map(k=>sgItems24[store][k]);
+  const diffs = keys.map((k,i)=>v25[i]-v24[i]);
+  const hW = Math.max(keys.length * 42 + 60, 320);
+
+  document.getElementById('sgWrap').style.height = hW+'px';
+  document.getElementById('sgDiffWrap').style.height = Math.max(keys.length*30+60,220)+'px';
+
+  if(sgChart) sgChart.destroy();
+  if(sgDiffChart) sgDiffChart.destroy();
+
+  sgChart = new Chart(document.getElementById('sgChart'),{
+    type:'bar',
+    data:{labels:keys,datasets:[
+      {label:'2025年度(4月)',data:v25,backgroundColor:B25,borderRadius:2,barPercentage:0.7},
+      {label:'2024年度(4月)',data:v24,backgroundColor:B24,borderRadius:2,barPercentage:0.7}
+    ]},
+    options:{...baseOpts,indexAxis:'y',
+      scales:{
+        y:{ticks:{color:tc,font:{size:11}},grid:{color:gc}},
+        x:{ticks:{color:tc,font:{size:10},callback:v=>v>=1000?v/1000+'千':v},grid:{color:gc}}
+      },
+      plugins:{legend:{display:true,position:'top',labels:{color:tc,font:{size:11},usePointStyle:true,pointStyle:'rect'}}}}
+  });
+
+  sgDiffChart = new Chart(document.getElementById('sgDiffChart'),{
+    type:'bar',
+    data:{labels:keys,datasets:[{label:'増減',data:diffs,backgroundColor:diffs.map(v=>v<=0?TEAL:CORAL),borderRadius:2,barPercentage:0.6}]},
+    options:{...baseOpts,indexAxis:'y',
+      scales:{
+        y:{ticks:{color:tc,font:{size:11}},grid:{color:gc}},
+        x:{ticks:{color:tc,font:{size:10},callback:v=>(v>=0?'+':'')+( v>=1000||v<=-1000?(v/1000).toFixed(0)+'千':v)},grid:{color:gc}}
+      },
+      plugins:{legend:{display:false}}}
+  });
+}
+
+const views = ['overview','ranking','sg'];
+function show(v){
+  views.forEach(id=>document.getElementById('v-'+id).style.display=id===v?'':'none');
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',views[i]===v));
+  if(v==='overview') initOverview();
+  else if(v==='ranking') initRanking();
+  else if(v==='sg') renderSG(document.getElementById('storeSelect').value);
+}
+
+initOverview();
+</script>
