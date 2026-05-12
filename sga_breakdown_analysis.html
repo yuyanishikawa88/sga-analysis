@@ -1,1 +1,144 @@
-<html><body>s3test</body></html>
+
+<h2 class="sr-only">店舗別販管費内訳 昨対分析（2025年度 vs 2024年度）― 科目ごとの増減比較</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:1.25rem;}
+.tab{padding:6px 13px;font-size:13px;cursor:pointer;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);}
+.tab.active{background:var(--color-background-secondary);color:var(--color-text-primary);font-weight:500;border-color:var(--color-border-primary);}
+.chart-wrap{position:relative;width:100%;}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--color-text-secondary);}
+.legend span{display:flex;align-items:center;gap:4px;}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+.note{font-size:11px;color:var(--color-text-tertiary);margin-top:8px;}
+.section-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:1rem 0 6px;padding-bottom:5px;border-bottom:0.5px solid var(--color-border-tertiary);}
+.store-select{font-size:13px;padding:5px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer;margin-bottom:1rem;}
+</style>
+
+<div style="padding:1rem 0;">
+
+<div class="tabs" id="storeTabs"></div>
+
+<div class="legend">
+  <span><i style="background:#378ADD;"></i>2025年度</span>
+  <span><i style="background:#B5D4F4;"></i>2024年度</span>
+</div>
+
+<div class="chart-wrap" id="mainChartWrap" style="height:420px;">
+  <canvas id="mainChart" role="img" aria-label="店舗別販管費内訳比較棒グラフ">販管費内訳比較</canvas>
+</div>
+
+<div class="section-label" style="margin-top:1.5rem;">昨対増減（差額）― 増加が課題、減少はコスト改善</div>
+<div class="chart-wrap" id="diffChartWrap" style="height:300px;">
+  <canvas id="diffChart" role="img" aria-label="販管費科目別昨対増減棒グラフ">科目別増減</canvas>
+</div>
+
+<div class="note">単位：千円 ／ 差額のグラフ：緑＝コスト削減、赤＝コスト増加</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const textColor = isDark ? '#e0dfd8' : '#2C2C2A';
+const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const BLUE25 = isDark ? '#185FA5' : '#378ADD';
+const BLUE24 = isDark ? '#3C3489' : '#B5D4F4';
+const TEAL = isDark ? '#0F6E56' : '#1D9E75';
+const CORAL = isDark ? '#993C1D' : '#D85A30';
+
+const items = ['旅費交通費','広告宣伝費','発送配達費','燃料費','業務委託費','役員報酬','従業員給料手当','賞与','法定福利費','福利厚生費','減価償却費','賃借料','修繕費','事務用消耗品費','通信費','水道光熱費','地代家賃','租税公課','会議費','保険料','管理諸費','採用教育費','雑費'];
+
+const raw = {
+  岡崎:{旅費交通費:[2271,2873],広告宣伝費:[10136,4655],発送配達費:[174,93],燃料費:[1364,1285],業務委託費:[2875,4462],役員報酬:[1500,0],従業員給料手当:[35095,40497],賞与:[1320,1956],法定福利費:[2822,3232],福利厚生費:[432,640],減価償却費:[6456,6381],賃借料:[1312,997],修繕費:[579,1354],事務用消耗品費:[5560,5300],通信費:[724,363],水道光熱費:[6178,6877],地代家賃:[18830,22160],租税公課:[881,1239],会議費:[222,51],保険料:[2044,1729],管理諸費:[13391,9368],採用教育費:[45,91],雑費:[5995,6761]},
+  野間:{旅費交通費:[880,1285],広告宣伝費:[6016,6018],発送配達費:[686,284],燃料費:[248,465],業務委託費:[4209,6479],役員報酬:[0,0],従業員給料手当:[33498,34091],賞与:[1270,1830],法定福利費:[2687,2525],福利厚生費:[99,107],減価償却費:[3947,3777],賃借料:[669,620],修繕費:[732,852],事務用消耗品費:[5236,7084],通信費:[470,495],水道光熱費:[8714,8132],地代家賃:[22030,16105],租税公課:[325,431],会議費:[117,65],保険料:[1187,1392],管理諸費:[5437,4806],採用教育費:[45,91],雑費:[8152,8309]},
+  野並:{旅費交通費:[580,520],広告宣伝費:[1777,1528],発送配達費:[8,4],燃料費:[180,275],業務委託費:[150,102],役員報酬:[0,1400],従業員給料手当:[12551,17420],賞与:[600,410],法定福利費:[956,1770],福利厚生費:[39,0],減価償却費:[449,406],賃借料:[634,543],修繕費:[434,25],事務用消耗品費:[1068,1998],通信費:[264,246],水道光熱費:[3209,3554],地代家賃:[5400,5400],租税公課:[118,141],会議費:[0,70],保険料:[99,0],管理諸費:[1627,1213],採用教育費:[74,45],雑費:[1104,1125]},
+  一宮:{旅費交通費:[266,698],広告宣伝費:[6646,3338],発送配達費:[98,78],燃料費:[164,207],業務委託費:[1770,1569],役員報酬:[0,0],従業員給料手当:[23373,24004],賞与:[1330,820],法定福利費:[2404,1987],福利厚生費:[31,43],減価償却費:[699,680],賃借料:[325,365],修繕費:[906,512],事務用消耗品費:[3191,2216],通信費:[507,473],水道光熱費:[3478,3845],地代家賃:[14027,14215],租税公課:[558,768],会議費:[5,44],保険料:[237,251],管理諸費:[2009,1563],採用教育費:[0,91],雑費:[3032,2890]},
+  与位:{旅費交通費:[1165,951],広告宣伝費:[4258,4445],発送配達費:[106,75],燃料費:[382,489],業務委託費:[1611,2356],役員報酬:[0,0],従業員給料手当:[15208,16488],賞与:[1010,811],法定福利費:[1480,1057],福利厚生費:[47,86],減価償却費:[55,5],賃借料:[8,47],修繕費:[355,555],事務用消耗品費:[2325,2590],通信費:[366,413],水道光熱費:[3831,3585],地代家賃:[7545,7678],租税公課:[11,7],会議費:[61,43],保険料:[448,356],管理諸費:[2023,1617],採用教育費:[45,91],雑費:[3584,2669]},
+  瀬戸:{旅費交通費:[994,1334],広告宣伝費:[5786,1976],発送配達費:[177,189],燃料費:[301,401],業務委託費:[841,1891],役員報酬:[0,0],従業員給料手当:[21239,22208],賞与:[720,1450],法定福利費:[1610,1409],福利厚生費:[99,80],減価償却費:[795,862],賃借料:[673,512],修繕費:[769,337],事務用消耗品費:[2397,4096],通信費:[325,371],水道光熱費:[4351,5661],地代家賃:[13000,9972],租税公課:[16,46],会議費:[74,114],保険料:[271,337],管理諸費:[2243,2295],採用教育費:[74,91],雑費:[1477,1892]},
+  蒲郡:{旅費交通費:[430,247],広告宣伝費:[1206,1069],発送配達費:[23,9],燃料費:[406,213],業務委託費:[379,94],役員報酬:[5000,3900],従業員給料手当:[3208,553],賞与:[400,0],法定福利費:[453,51],福利厚生費:[0,25],減価償却費:[480,266],賃借料:[374,280],修繕費:[1030,502],事務用消耗品費:[1904,1840],通信費:[126,115],水道光熱費:[677,604],地代家賃:[444,441],租税公課:[2,1],会議費:[237,84],保険料:[0,37],管理諸費:[510,477],採用教育費:[0,0],雑費:[410,844]},
+  栄:{旅費交通費:[635,1203],広告宣伝費:[4972,4286],発送配達費:[2,1],燃料費:[33,172],業務委託費:[230,494],役員報酬:[0,4600],従業員給料手当:[12347,16323],賞与:[50,340],法定福利費:[1161,1232],福利厚生費:[79,17],減価償却費:[815,618],賃借料:[9,39],修繕費:[154,452],事務用消耗品費:[906,2082],通信費:[162,62],水道光熱費:[2491,1857],地代家賃:[9480,10120],租税公課:[134,28],会議費:[0,2],保険料:[0,0],管理諸費:[1529,894],採用教育費:[74,45],雑費:[1303,1318]},
+  京都:{旅費交通費:[1146,0],広告宣伝費:[390,0],発送配達費:[21,0],燃料費:[454,0],業務委託費:[192,0],役員報酬:[0,0],従業員給料手当:[6523,0],賞与:[200,0],法定福利費:[662,0],福利厚生費:[120,0],減価償却費:[0,0],賃借料:[0,0],修繕費:[24,0],事務用消耗品費:[10739,0],通信費:[67,0],水道光熱費:[845,0],地代家賃:[0,0],租税公課:[4,0],会議費:[33,0],保険料:[0,0],管理諸費:[550,0],採用教育費:[0,0],雑費:[359,0]}
+};
+
+const stores = Object.keys(raw);
+let currentStore = '岡崎';
+let mainChart = null;
+let diffChart = null;
+
+function getFilteredItems(store) {
+  return items.filter(it => {
+    const v = raw[store][it];
+    return v && (v[0] > 0 || v[1] > 0);
+  });
+}
+
+function renderCharts(store) {
+  const filtered = getFilteredItems(store);
+  const vals25 = filtered.map(it => raw[store][it][0]);
+  const vals24 = filtered.map(it => raw[store][it][1]);
+  const diffs = filtered.map(it => raw[store][it][0] - raw[store][it][1]);
+
+  const shortLabels = filtered.map(l => l.replace('費','').replace('手当',''));
+
+  const commonTick = { color: textColor, font: { size: 11 }, autoSkip: false, maxRotation: 40 };
+  const commonGrid = { color: gridColor };
+
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(document.getElementById('mainChart'), {
+    type: 'bar',
+    data: {
+      labels: shortLabels,
+      datasets: [
+        { label: '2025年度', data: vals25, backgroundColor: BLUE25, borderRadius: 2, barPercentage: 0.7 },
+        { label: '2024年度', data: vals24, backgroundColor: BLUE24, borderRadius: 2, barPercentage: 0.7 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: commonTick, grid: commonGrid },
+        y: { ticks: { ...commonTick, callback: v => v >= 1000 ? (v/1000).toFixed(0)+'千' : v }, grid: commonGrid }
+      }
+    }
+  });
+
+  if (diffChart) diffChart.destroy();
+  diffChart = new Chart(document.getElementById('diffChart'), {
+    type: 'bar',
+    data: {
+      labels: shortLabels,
+      datasets: [{
+        label: '増減（千円）',
+        data: diffs,
+        backgroundColor: diffs.map(d => d <= 0 ? TEAL : CORAL),
+        borderRadius: 2,
+        barPercentage: 0.6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: commonTick, grid: commonGrid },
+        y: { ticks: { ...commonTick, callback: v => (v >= 0 ? '+' : '') + (v >= 1000 || v <= -1000 ? (v/1000).toFixed(0)+'千' : v) }, grid: commonGrid }
+      }
+    }
+  });
+}
+
+const tabsEl = document.getElementById('storeTabs');
+stores.forEach(s => {
+  const btn = document.createElement('button');
+  btn.className = 'tab' + (s === currentStore ? ' active' : '');
+  btn.textContent = s;
+  btn.onclick = () => {
+    currentStore = s;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderCharts(s);
+  };
+  tabsEl.appendChild(btn);
+});
+
+renderCharts(currentStore);
+</script>
