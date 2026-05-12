@@ -1,0 +1,243 @@
+
+<h2 class="sr-only">店舗別昨対分析（2025年度 vs 2024年度）― 売上・販管費・営業利益の比較</h2>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.section { margin-bottom: 2rem; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.tab { padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); transition: all 0.15s; }
+.tab.active { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-primary); font-weight: 500; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+.metric-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+.metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.metric-value { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+.metric-sub { font-size: 12px; margin-top: 2px; }
+.up { color: #1D9E75; }
+.down { color: #D85A30; }
+.neutral { color: var(--color-text-secondary); }
+.chart-container { position: relative; width: 100%; }
+.store-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.store-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 12px 14px; }
+.store-card.highlight-good { border-left: 3px solid #1D9E75; }
+.store-card.highlight-bad { border-left: 3px solid #D85A30; }
+.store-card.highlight-new { border-left: 3px solid #378ADD; }
+.store-name { font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
+.store-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.store-row .val { font-weight: 500; color: var(--color-text-primary); }
+.store-row .diff { font-size: 11px; }
+.badge { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: var(--border-radius-md); margin-bottom: 6px; font-weight: 500; }
+.badge-up { background: #E1F5EE; color: #0F6E56; }
+.badge-down { background: #FAECE7; color: #993C1D; }
+.badge-new { background: #E6F1FB; color: #185FA5; }
+@media (prefers-color-scheme: dark) {
+  .badge-up { background: #085041; color: #9FE1CB; }
+  .badge-down { background: #4A1B0C; color: #F5C4B3; }
+  .badge-new { background: #042C53; color: #B5D4F4; }
+}
+</style>
+
+<div style="padding: 1rem 0;">
+
+<div class="tabs">
+  <button class="tab active" onclick="showView('overview')">総合サマリー</button>
+  <button class="tab" onclick="showView('sales')">売上高</button>
+  <button class="tab" onclick="showView('sg')">販管費</button>
+  <button class="tab" onclick="showView('profit')">営業利益</button>
+  <button class="tab" onclick="showView('cards')">店舗カード</button>
+</div>
+
+<div id="view-overview">
+  <div class="summary-grid">
+    <div class="metric-card">
+      <div class="metric-label">売上増加 トップ</div>
+      <div class="metric-value" style="font-size:18px;">野間</div>
+      <div class="metric-sub up">+18,160千円 (+13.1%)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">売上減少 最大</div>
+      <div class="metric-value" style="font-size:18px;">岡崎</div>
+      <div class="metric-sub down">−20,902千円 (−9.2%)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">利益改善 トップ</div>
+      <div class="metric-value" style="font-size:18px;">栄</div>
+      <div class="metric-sub up">+13,262千円</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">利益悪化 最大</div>
+      <div class="metric-value" style="font-size:18px;">京都</div>
+      <div class="metric-sub down">−23,239千円（新規）</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">販管費削減 最大</div>
+      <div class="metric-value" style="font-size:18px;">栄</div>
+      <div class="metric-sub up">−9,619千円</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">販管費増加 最大</div>
+      <div class="metric-value" style="font-size:18px;">蒲郡</div>
+      <div class="metric-sub down">+6,044千円</div>
+    </div>
+  </div>
+  <div class="chart-container" style="height: 340px;">
+    <canvas id="overviewChart" role="img" aria-label="各店舗の2025年度と2024年度の売上高比較棒グラフ">各店舗の売上高比較</canvas>
+  </div>
+</div>
+
+<div id="view-sales" style="display:none;">
+  <div class="chart-container" style="height: 380px;">
+    <canvas id="salesChart" role="img" aria-label="各店舗の売上昨対比較">売上高昨対比較</canvas>
+  </div>
+</div>
+
+<div id="view-sg" style="display:none;">
+  <div class="chart-container" style="height: 380px;">
+    <canvas id="sgChart" role="img" aria-label="各店舗の販管費昨対比較">販管費昨対比較</canvas>
+  </div>
+</div>
+
+<div id="view-profit" style="display:none;">
+  <div class="chart-container" style="height: 380px;">
+    <canvas id="profitChart" role="img" aria-label="各店舗の営業利益昨対比較">営業利益昨対比較</canvas>
+  </div>
+</div>
+
+<div id="view-cards" style="display:none;">
+  <div class="store-cards" id="storeCardsGrid"></div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const stores = ['岡崎','野間','野並','一宮','与位','瀬戸','蒲郡','栄','京都'];
+const data = {
+  売上2025: [205693, 156867, 61747, 98218, 53995, 81600, 38040, 67569, 1173],
+  売上2024: [226595, 138707, 59293, 99016, 60311, 77588, 34177, 64393, 0],
+  販管2025: [120206, 106654, 31320, 65056, 45923, 58231, 17698, 36567, 22330],
+  販管2024: [122366, 105242, 38196, 60656, 46413, 57525, 11654, 46186, 0],
+  利益2025: [55102, 19167, 13592, 17047, -1306, 7133, 13317, 14141, -23239],
+  利益2024: [76016, 10103, 1263, 22946, 3336, 3183, 16899, 879, 0],
+};
+
+const fmt = v => (v >= 0 ? '' : '−') + Math.abs(v).toLocaleString();
+const fmtDiff = v => (v >= 0 ? '+' : '−') + Math.abs(v).toLocaleString();
+const fmtRate = (v, base) => base === 0 ? '新規' : ((v >= 0 ? '+' : '') + (v/base*100).toFixed(1) + '%');
+
+function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+const BLUE25 = isDark() ? '#185FA5' : '#378ADD';
+const BLUE24 = isDark() ? '#0C447C' : '#B5D4F4';
+const TEAL = isDark() ? '#0F6E56' : '#1D9E75';
+const CORAL = isDark() ? '#993C1D' : '#D85A30';
+const GREEN = isDark() ? '#3B6D11' : '#639922';
+const RED = isDark() ? '#A32D2D' : '#E24B4A';
+const AMBER = isDark() ? '#854F0B' : '#BA7517';
+const GRAY = isDark() ? '#5F5E5A' : '#888780';
+const textColor = isDark() ? '#e0dfd8' : '#2C2C2A';
+const gridColor = isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+const commonOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: textColor, font: { size: 12 }, autoSkip: false }, grid: { color: gridColor } },
+    y: { ticks: { color: textColor, font: { size: 11 }, callback: v => (Math.abs(v)>=1000 ? (v/1000).toFixed(0)+'千' : v) }, grid: { color: gridColor } }
+  }
+};
+
+function diffColors(diffs) {
+  return diffs.map(d => d >= 0 ? TEAL : CORAL);
+}
+
+let chartsCreated = false;
+function createCharts() {
+  if (chartsCreated) return;
+  chartsCreated = true;
+
+  new Chart(document.getElementById('overviewChart'), {
+    type: 'bar',
+    data: {
+      labels: stores,
+      datasets: [
+        { label: '2025年度', data: data.売上2025, backgroundColor: BLUE25, borderRadius: 3 },
+        { label: '2024年度', data: data.売上2024, backgroundColor: BLUE24, borderRadius: 3 }
+      ]
+    },
+    options: { ...commonOpts, plugins: { legend: { display: true, position: 'top', labels: { color: textColor, font: { size: 12 }, usePointStyle: true, pointStyle: 'rect' } } } }
+  });
+
+  const salesDiff = stores.map((s,i) => data.売上2025[i] - data.売上2024[i]);
+  new Chart(document.getElementById('salesChart'), {
+    type: 'bar',
+    data: { labels: stores, datasets: [{ label: '売上増減（千円）', data: salesDiff, backgroundColor: diffColors(salesDiff), borderRadius: 3 }] },
+    options: { ...commonOpts, plugins: { legend: { display: false }, title: { display: true, text: '売上高 昨対増減（2025年度 − 2024年度）', color: textColor, font: { size: 13, weight: '500' } } } }
+  });
+
+  const sgDiff = stores.map((s,i) => data.販管2025[i] - data.販管2024[i]);
+  new Chart(document.getElementById('sgChart'), {
+    type: 'bar',
+    data: { labels: stores, datasets: [{ label: '販管費増減（千円）', data: sgDiff, backgroundColor: sgDiff.map(d => d <= 0 ? TEAL : CORAL), borderRadius: 3 }] },
+    options: { ...commonOpts, plugins: { legend: { display: false }, title: { display: true, text: '販管費 昨対増減（プラスは増加＝コスト増、マイナスは削減）', color: textColor, font: { size: 13, weight: '500' } } } }
+  });
+
+  const profitDiff = stores.map((s,i) => data.利益2025[i] - data.利益2024[i]);
+  new Chart(document.getElementById('profitChart'), {
+    type: 'bar',
+    data: { labels: stores, datasets: [{ label: '営業利益増減（千円）', data: profitDiff, backgroundColor: diffColors(profitDiff), borderRadius: 3 }] },
+    options: { ...commonOpts, plugins: { legend: { display: false }, title: { display: true, text: '営業利益 昨対増減（2025年度 − 2024年度）', color: textColor, font: { size: 13, weight: '500' } } } }
+  });
+
+  const grid = document.getElementById('storeCardsGrid');
+  stores.forEach((store, i) => {
+    const sDiff = data.売上2025[i] - data.売上2024[i];
+    const hDiff = data.販管2025[i] - data.販管2024[i];
+    const pDiff = data.利益2025[i] - data.利益2024[i];
+    const isNew = data.売上2024[i] === 0;
+
+    let cls = 'store-card';
+    let badge = '';
+    if (isNew) {
+      cls += ' highlight-new';
+      badge = '<span class="badge badge-new">新規</span>';
+    } else if (pDiff > 5000) {
+      cls += ' highlight-good';
+      badge = '<span class="badge badge-up">利益大幅改善</span>';
+    } else if (pDiff < -5000) {
+      cls += ' highlight-bad';
+      badge = '<span class="badge badge-down">利益大幅悪化</span>';
+    }
+
+    const sDiffColor = sDiff >= 0 ? 'up' : 'down';
+    const hDiffColor = hDiff <= 0 ? 'up' : 'down';
+    const pDiffColor = pDiff >= 0 ? 'up' : 'down';
+
+    grid.innerHTML += `
+      <div class="${cls}">
+        ${badge}
+        <div class="store-name">${store}</div>
+        <div class="store-row"><span>売上高</span><span class="val">${fmt(data.売上2025[i])}千円</span></div>
+        <div class="store-row" style="margin-bottom:8px;"><span style="font-size:11px;">昨対</span><span class="diff ${sDiffColor}">${fmtDiff(sDiff)} (${fmtRate(sDiff, data.売上2024[i])})</span></div>
+        <div class="store-row"><span>販管費</span><span class="val">${fmt(data.販管2025[i])}千円</span></div>
+        <div class="store-row" style="margin-bottom:8px;"><span style="font-size:11px;">昨対</span><span class="diff ${hDiffColor}">${fmtDiff(hDiff)}</span></div>
+        <div class="store-row"><span>営業利益</span><span class="val ${data.利益2025[i] >= 0 ? '' : 'down'}">${fmt(data.利益2025[i])}千円</span></div>
+        <div class="store-row"><span style="font-size:11px;">昨対</span><span class="diff ${pDiffColor}">${fmtDiff(pDiff)}</span></div>
+      </div>
+    `;
+  });
+}
+
+const views = ['overview', 'sales', 'sg', 'profit', 'cards'];
+function showView(v) {
+  views.forEach(id => {
+    document.getElementById('view-'+id).style.display = id === v ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', views[i] === v);
+  });
+  createCharts();
+}
+
+createCharts();
+</script>
